@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MarkSoc Recruitment Viewer</title>
+<style>
+:root{
+  --bg:#f6f5f2; --card:#ffffff; --ink:#1d1d1b; --muted:#6b6a65; --line:#e4e2dc;
+  --accent:#c2410c; --accent-soft:#fff1e8; --chip:#efede7; --star:#d99a00;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#161614; --card:#1f1f1c; --ink:#f0eee8; --muted:#a29f96; --line:#34332e;
+    --accent:#fb923c; --accent-soft:#2b2018; --chip:#2a2926; --star:#f5b82e; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header.top{padding:18px 16px 12px;max-width:1000px;margin:0 auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+header.top h1{font-size:20px;margin:0;letter-spacing:-.01em}
+header.top small{color:var(--muted);display:block;font-weight:400;font-size:13px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit;font-size:14px}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+main{max-width:1000px;margin:0 auto;padding:0 16px 60px}
+#drop{border:2px dashed var(--line);border-radius:14px;padding:60px 20px;text-align:center;color:var(--muted);background:var(--card)}
+#drop.over{border-color:var(--accent);background:var(--accent-soft)}
+#drop h2{color:var(--ink);margin:0 0 6px;font-size:18px}
+#err{color:#b91c1c;margin-top:12px;font-size:14px}
+.controls{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 12px;border-bottom:1px solid var(--line);display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.controls label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+.controls select,.controls input[type=search]{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:14px 0}
+.bar .count{font-weight:600}
+.bar .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chk{font-size:14px;display:flex;gap:6px;align-items:center;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.card .head{display:flex;gap:10px;justify-content:space-between;align-items:flex-start}
+.card h3{margin:0;font-size:17px}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.badge{font-size:12px;padding:2px 9px;border-radius:99px;background:var(--chip);color:var(--muted)}
+.badge.match{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.star{background:none;border:0;font-size:22px;cursor:pointer;color:var(--muted);line-height:1;padding:2px 4px}
+.star.on{color:var(--star)}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px 18px;margin:12px 0;font-size:14px}
+.info div span{display:block;font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.info a,.ans a{color:var(--accent);word-break:break-all}
+details{border-top:1px solid var(--line);padding-top:10px}
+summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
+.pref-title{margin:12px 0 4px;font-size:13px;font-weight:700;color:var(--accent)}
+.qa{margin:10px 0}
+.qa .q{font-size:13px;color:var(--muted)}
+.qa .ans{white-space:pre-wrap;word-wrap:break-word}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+mark{background:#fde68a;color:#000;border-radius:2px}
+@media print{ .controls,.actions,header.top .btn,.star{display:none} body{background:#fff} .card{break-inside:avoid} }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>MarkSoc Recruitment Viewer<small>Upload the Google Form CSV, pick a team, read the applications. Data stays in your browser.</small></h1>
+  <label class="btn primary" id="uploadBtn">Upload CSV<input type="file" id="file" accept=".csv,text/csv" hidden></label>
+</header>
+<main>
+  <div id="drop">
+    <h2>Drop the responses CSV here</h2>
+    <div>or use the Upload CSV button. Nothing is sent anywhere; the file is read locally.</div>
+    <div id="err"></div>
+  </div>
+  <div id="app" hidden>
+    <div class="controls">
+      <div><label for="team">Team</label><select id="team"></select></div>
+      <div><label for="pref">Preference</label>
+        <select id="pref">
+          <option value="0">Any preference</option>
+          <option value="1">1st preference only</option>
+          <option value="2">2nd preference only</option>
+        </select></div>
+      <div><label for="q">Search</label><input type="search" id="q" placeholder="Name, ID, or any answer"></div>
+      <div><label for="sort">Sort by</label>
+        <select id="sort">
+          <option value="order">Form order</option>
+          <option value="name">Name (A–Z)</option>
+          <option value="newest">Newest first</option>
+        </select></div>
+    </div>
+    <div class="bar">
+      <span class="count" id="count"></span>
+      <span class="actions">
+        <label class="chk"><input type="checkbox" id="short"> Shortlisted only</label>
+        <button class="btn" id="toggleAll">Collapse answers</button>
+        <button class="btn" id="exportBtn">Export CSV</button>
+        <button class="btn" onclick="window.print()">Print</button>
+      </span>
+    </div>
+    <div id="list"></div>
+  </div>
+</main>
+
+<script id="logic">
+function parseCSV(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const rows=[]; let row=[],f='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; }
+      else f+=c;
+    } else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=''; }
+    else if(c==='\n'||c==='\r'){
+      if(c==='\r'&&text[i+1]==='\n') i++;
+      row.push(f); f=''; rows.push(row); row=[];
+    } else f+=c;
+  }
+  if(f!==''||row.length){ row.push(f); rows.push(row); }
+  return rows;
+}
+const clean=s=>String(s==null?'':s).replace(/\s+/g,' ').trim();
+
+function buildModel(rows){
+  if(rows.length<2) throw new Error('The file has no responses.');
+  const h=rows[0].map(clean);
+  const teamIdx=[];
+  h.forEach((c,i)=>{ if(/which team would you like/i.test(c)) teamIdx.push(i); });
+  if(!teamIdx.length) throw new Error('Could not find the "Which team would you like to apply for?" column. Is this the recruitment form CSV?');
+  const personal=[]; for(let i=0;i<teamIdx[0];i++) personal.push(i);
+  const blocks=teamIdx.map((s,b)=>({start:s,end:b+1<teamIdx.length?teamIdx[b+1]:h.length}));
+  const people=[]; const teams=new Set();
+  rows.slice(1).forEach((r,n)=>{
+    if(!r.some(x=>clean(x))) return;
+    const info=personal.map(i=>({label:h[i],value:clean(r[i])}));
+    const get=lbl=>{const f=info.find(x=>x.label.toLowerCase().startsWith(lbl));return f?f.value:'';};
+    const prefs=[];
+    blocks.forEach((bl,b)=>{
+      const team=clean(r[bl.start]);
+      if(!team) return;
+      teams.add(team);
+      const answers=[];
+      for(let j=bl.start+1;j<bl.end;j++){
+        const a=String(r[j]==null?'':r[j]).trim();
+        if(a) answers.push({q:h[j],a});
+      }
+      prefs.push({pref:b+1,team,answers});
+    });
+    people.push({
+      id:n+'|'+get('name')+'|'+get('email'),
+      order:n, name:get('name')||'(no name)', time:get('timestamp'),
+      info, prefs
+    });
+  });
+  return {headers:h,personal,people,teams:[...teams].sort()};
+}
+
+function matchPeople(model,opt){
+  const q=(opt.q||'').toLowerCase().trim();
+  let out=[];
+  model.people.forEach(p=>{
+    const matched=p.prefs.filter(x=>(!opt.team||x.team===opt.team)&&(!opt.pref||x.pref===opt.pref));
+    if(!matched.length) return;
+    if(opt.shortOnly && !(opt.shortlist&&opt.shortlist.has(p.id))) return;
+    if(q){
+      const hay=(p.info.map(i=>i.value).join(' ')+' '+matched.map(m=>m.answers.map(a=>a.a).join(' ')).join(' ')).toLowerCase();
+      if(!hay.includes(q)) return;
+    }
+    out.push({p,matched});
+  });
+  if(opt.sort==='name') out.sort((a,b)=>a.p.name.localeCompare(b.p.name));
+  else if(opt.sort==='newest') out.reverse();
+  return out;
+}
+</script>
+
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let model=null, shortlist=new Set(), allOpen=true;
+try{ shortlist=new Set(JSON.parse(localStorage.getItem('marksoc_shortlist')||'[]')); }catch(e){}
+const saveShort=()=>{ try{localStorage.setItem('marksoc_shortlist',JSON.stringify([...shortlist]));}catch(e){} };
+
+function hl(text,q){
+  let s=esc(text);
+  s=s.replace(/(https?:\/\/[^\s<]+)/g,u=>'<a href="'+u+'" target="_blank" rel="noopener">'+u+'</a>');
+  return s;
+}
+function fieldHTML(label,value){
+  if(!value) return '';
+  let v;
+  if(/^https?:\/\//i.test(value)) v='<a href="'+esc(value)+'" target="_blank" rel="noopener">Open link</a>';
+  else if(/email/i.test(label) && value.includes('@')) v='<a href="mailto:'+esc(value)+'">'+esc(value)+'</a>';
+  else if(/contact|phone/i.test(label) && /\d{6,}/.test(value)) v='<a href="tel:'+esc(value.replace(/[^\d+]/g,''))+'">'+esc(value)+'</a>';
+  else v=esc(value);
+  return '<div><span>'+esc(label.replace(/\s*\/\s*/,' / '))+'</span>'+v+'</div>';
+}
+
+function render(){
+  const res=matchPeople(model,{
+    team:$('team').value, pref:+$('pref').value, q:$('q').value,
+    sort:$('sort').value, shortOnly:$('short').checked, shortlist
+  });
+  const team=$('team').value;
+  $('count').textContent=res.length+' applicant'+(res.length===1?'':'s')+(team?' for '+team:' across all teams');
+  if(!res.length){ $('list').innerHTML='<div class="empty">No applicants match these filters.</div>'; return; }
+  $('list').innerHTML=res.map(({p,matched})=>{
+    const matchedSet=new Set(matched.map(m=>m.pref));
+    const badges=p.prefs.map(x=>'<span class="badge '+(matchedSet.has(x.pref)&&(team||$('pref').value!=='0')?'match':'')+'">Pref '+x.pref+': '+esc(x.team)+'</span>').join('');
+    const info=p.info.filter(i=>!/^name$/i.test(i.label)).map(i=>fieldHTML(i.label,i.value)).join('');
+    const multi=matched.length>1;
+    const answers=matched.map(m=>{
+      const body=m.answers.length?m.answers.map(a=>'<div class="qa"><div class="q">'+esc(a.q)+'</div><div class="ans">'+hl(a.a)+'</div></div>').join(''):'<div class="qa"><div class="q">No answers submitted for this preference.</div></div>';
+      return (multi?'<div class="pref-title">Preference '+m.pref+' · '+esc(m.team)+'</div>':'')+body;
+    }).join('');
+    const on=shortlist.has(p.id);
+    return '<article class="card"><div class="head"><div><h3>'+esc(p.name)+'</h3><div class="badges">'+badges+'</div></div>'+
+      '<button class="star'+(on?' on':'')+'" data-id="'+esc(p.id)+'" title="Shortlist" aria-label="Shortlist">'+(on?'★':'☆')+'</button></div>'+
+      '<div class="info">'+info+'</div>'+
+      '<details'+(allOpen?' open':'')+'><summary>Responses ('+matched.reduce((n,m)=>n+m.answers.length,0)+')</summary>'+answers+'</details></article>';
+  }).join('');
+}
+
+function load(text){
+  try{
+    model=buildModel(parseCSV(text));
+  }catch(e){ $('err').textContent=e.message; return; }
+  $('err').textContent='';
+  $('team').innerHTML='<option value="">All teams</option>'+model.teams.map(t=>{
+    const n=model.people.filter(p=>p.prefs.some(x=>x.team===t)).length;
+    return '<option value="'+esc(t)+'">'+esc(t)+' ('+n+')</option>';
+  }).join('');
+  $('drop').hidden=true; $('app').hidden=false;
+  render();
+}
+
+function readFile(f){
+  if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>load(r.result);
+  r.readAsText(f,'utf-8');
+}
+$('file').addEventListener('change',e=>readFile(e.target.files[0]));
+['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('drop').classList.add('over');}));
+['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();$('drop').classList.remove('over');}));
+document.addEventListener('drop',e=>readFile(e.dataTransfer.files[0]));
+
+['team','pref','sort','short'].forEach(id=>$(id).addEventListener('change',render));
+$('q').addEventListener('input',render);
+$('toggleAll').addEventListener('click',()=>{
+  allOpen=!allOpen;
+  document.querySelectorAll('#list details').forEach(d=>d.open=allOpen);
+  $('toggleAll').textContent=allOpen?'Collapse answers':'Expand answers';
+});
+$('list').addEventListener('click',e=>{
+  const b=e.target.closest('.star'); if(!b) return;
+  const id=b.dataset.id;
+  if(shortlist.has(id)) shortlist.delete(id); else shortlist.add(id);
+  saveShort();
+  if($('short').checked) render(); else { const on=shortlist.has(id); b.classList.toggle('on',on); b.textContent=on?'★':'☆'; }
+});
+
+$('exportBtn').addEventListener('click',()=>{
+  const res=matchPeople(model,{team:$('team').value,pref:+$('pref').value,q:$('q').value,sort:$('sort').value,shortOnly:$('short').checked,shortlist});
+  const qs=[]; res.forEach(({matched})=>matched.forEach(m=>m.answers.forEach(a=>{ if(!qs.includes(a.q)) qs.push(a.q); })));
+  const head=[...model.personal.map(i=>model.headers[i]),'Preference','Team','Shortlisted',...qs];
+  const lines=[head];
+  res.forEach(({p,matched})=>matched.forEach(m=>{
+    const map=new Map(m.answers.map(a=>[a.q,a.a]));
+    lines.push([...p.info.map(i=>i.value),m.pref,m.team,shortlist.has(p.id)?'Yes':'',...qs.map(q=>map.get(q)||'')]);
+  }));
+  const csv=lines.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));
+  a.download='marksoc_'+(($('team').value||'all_teams').replace(/\W+/g,'_').toLowerCase())+'.csv';
+  a.click();
+});
+</script>
+</body>
+</html>
